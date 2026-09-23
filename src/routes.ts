@@ -59,6 +59,7 @@ import {
     approveMyClearance,
     getClearanceDetailsByTrackingId, // <-- add this import
     markClearanceAsCleared, // <-- add this import
+    updateClearance, // <-- add this import
 } from './controllers/clearance';
 import {
     createRemark,
@@ -140,11 +141,12 @@ router.get('/company/:id/departments', authenticateToken, requirePermission('can
 router.get('/clearances', authenticateToken, getAllClearanceRequests);
 router.post('/clearances', authenticateToken, requirePermission('can_create_clearance_requests'), createClearanceRequest);
 router.put('/clearance/:id/assign-template', authenticateToken, assignTemplateData);
+router.put('/clearance/:id/mark-cleared', authenticateToken, requirePermission('can_clear_clearances'), markClearanceAsCleared);
+router.put('/clearance/:id', authenticateToken, requirePermission('can_create_clearance_requests'), updateClearance);
 router.get('/my-clearances', authenticateToken, getMyClearances);
 router.get('/clearance/:id/details', authenticateToken, getClearanceDetails);
 router.get('/clearance/tracking/:tracking_id/', getClearanceDetailsByTrackingId);
 router.put('/my-clearance/approve', authenticateToken, approveMyClearance);
-router.put('/clearance/:id/mark-cleared', authenticateToken, requirePermission('can_clear_clearances'), markClearanceAsCleared);
 
 // ClearanceSignatory routes
 router.get('/clearance/:clearance_id/signatories', authenticateToken, getSignatoriesFromClearance);

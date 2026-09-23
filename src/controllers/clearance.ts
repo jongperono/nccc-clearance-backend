@@ -742,6 +742,105 @@ export const approveMyClearance = async (req: Request, res: Response) => {
 };
 
 /**
+ * Update a clearance request.
+ * @route PUT /clearance/:id
+ * @param {Request} req - Express request object
+ * @param {Response} res - Express response object
+ * @returns {Promise<Response>} 200 - Updated clearance
+ */
+export const updateClearance = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const {
+            first_name,
+            middle_name,
+            last_name,
+            email,
+            company_id,
+            branch_id,
+            department_id,
+            purpose,
+            id_number,
+            effectivity_date,
+            immediate_head,
+            position,
+        } = req.body;
+
+        console.log('[updateClearance] Request received:', {
+            clearanceId: id,
+            body: req.body
+        });
+
+        // Find the clearance
+        const clearance = await Clearance.findByPk(id);
+
+        if (!clearance) {
+            console.log('[updateClearance] Clearance not found:', id);
+            return apiRespond(res, {
+                status: 404,
+                success: false,
+                message: 'Clearance not found',
+            });
+        }
+
+        console.log('[updateClearance] Current clearance:', clearance.toJSON());
+
+        // Update the clearance
+        await clearance.update({
+            first_name,
+            middle_name: middle_name || null,
+            last_name,
+            email,
+            company_id: String(company_id),
+            branch_id: String(branch_id),
+            department_id: String(department_id),
+            purpose,
+            id_number: id_number || null,
+            effectivity_date: effectivity_date || null,
+            immediate_head: immediate_head || null,
+            position: position || null,
+        } as any);
+
+        console.log('[updateClearance] Clearance updated successfully');
+
+        // Re-fetch with associations
+        const updatedClearance = await Clearance.findOne({
+            where: { id: clearance.id },
+            include: [
+                { model: Company },
+                { model: Branch },
+                { model: Department },
+            ],
+            attributes: {
+                include: [
+                    'id_number',
+                    'effectivity_date',
+                    'immediate_head',
+                    'position'
+                ]
+            }
+        });
+
+        console.log('[updateClearance] Updated clearance fetched:', updatedClearance?.toJSON());
+
+        return apiRespond(res, {
+            status: 200,
+            success: true,
+            message: 'Clearance updated successfully',
+            data: updatedClearance ? updatedClearance.get({ plain: true }) : null,
+        });
+    } catch (error: any) {
+        console.error('[updateClearance] Error updating clearance:', error);
+        console.error('[updateClearance] Error stack:', error.stack);
+        return apiRespond(res, {
+            status: 500,
+            success: false,
+            message: error?.message || 'Internal server error while updating clearance',
+        });
+    }
+};
+
+/**
  * Mark a clearance as cleared by an employee.
  * @route PUT /clearance/:id/mark-cleared
  * @param {Request} req - Express request object
