@@ -18,6 +18,7 @@ import {
     updateTemplate,
     deleteTemplate,
     getTemplateSignatories,
+    removeTemplateSignatory,
 } from './controllers/template';
 import { authenticateToken, verifyPermissions, requirePermission } from './utils/tokenAuth';
 import {
@@ -155,6 +156,7 @@ router.get('/clearance/:clearance_id/signatories', authenticateToken, getSignato
 router.get('/templates', authenticateToken, requirePermission('can_create_templates'), getAllTemplates);
 router.post('/template', authenticateToken, requirePermission('can_create_templates'), createTemplate);
 router.get('/template/:id/signatories', authenticateToken, requirePermission('can_create_templates'), getTemplateSignatories);
+router.delete('/template/:templateId/signatory/:employeeId', authenticateToken, requirePermission('can_create_templates'), removeTemplateSignatory);
 router.get('/template/:id', authenticateToken, requirePermission('can_create_templates'), getTemplateById);
 router.put('/template/:id', authenticateToken, requirePermission('can_create_templates'), updateTemplate);
 router.delete('/template/:id', authenticateToken, requirePermission('can_create_templates'), deleteTemplate);

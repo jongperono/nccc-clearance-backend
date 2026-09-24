@@ -1,5 +1,5 @@
-import {Request, Response} from 'express';
-import {apiRespond} from '../utils/apiRespond';
+import { Request, Response } from 'express';
+import { apiRespond } from '../utils/apiRespond';
 import Template from '../database/models/template';
 import TemplateSignatory from '../database/models/templateSignatory';
 import Employee from '../database/models/employee'; // Import Employee model
@@ -56,10 +56,10 @@ export const createTemplate = async (req: Request, res: Response) => {
 
         const templateId = newTemplate.template_id!;
         const signatoryEntries = [];
-        
+
         // Process signatories from request body
         const templateSignatories = req.body.signatories || [];
-        
+
         // Validate that all employee IDs exist in the employees table
         const validEmployees = await Employee.findAll({
             where: { employee_id: templateSignatories },
@@ -208,14 +208,14 @@ export const getTemplateById = async (req: Request, res: Response) => {
 
         // Get signatories for this template
         const signatories = await TemplateSignatory.findAll({
-            where: {template_id: templateId},
+            where: { template_id: templateId },
         });
 
         return apiRespond(res, {
             status: 200,
             success: true,
             message: 'Template retrieved successfully',
-            data: {template, signatories},
+            data: { template, signatories },
         });
     } catch (error) {
         console.error('Error retrieving template', error);
@@ -278,7 +278,7 @@ export const updateTemplate = async (req: Request, res: Response) => {
     try {
         const templateId = req.params.id;
         const employee = req.body.employee;
-        const {title, purpose, footer_message, signatories} = req.body;
+        const { title, purpose, footer_message, signatories } = req.body;
 
         // Find the template to update
         const template = await Template.findByPk(templateId);
@@ -302,7 +302,7 @@ export const updateTemplate = async (req: Request, res: Response) => {
         if (signatories) {
             // Delete existing signatories
             await TemplateSignatory.destroy({
-                where: {template_id: templateId},
+                where: { template_id: templateId },
             });
 
             // Add new signatories
@@ -310,7 +310,7 @@ export const updateTemplate = async (req: Request, res: Response) => {
                 template_id: Number(templateId),
                 employee_id: Number(employeeId),
             }));
-            
+
             if (signatoryEntries.length > 0) {
                 await TemplateSignatory.bulkCreate(signatoryEntries);
             }
@@ -379,7 +379,7 @@ export const deleteTemplate = async (req: Request, res: Response) => {
 
         // Delete associated signatories first
         await TemplateSignatory.destroy({
-            where: {template_id: templateId},
+            where: { template_id: templateId },
         });
 
         // Delete the template
@@ -435,7 +435,7 @@ export const deleteTemplate = async (req: Request, res: Response) => {
 export const getTemplateSignatories = async (req: Request, res: Response) => {
     try {
         const templateId = req.params.id;
-        
+
         // Check if the template exists
         const template = await Template.findByPk(templateId);
         if (!template) {
@@ -482,6 +482,85 @@ export const getTemplateSignatories = async (req: Request, res: Response) => {
             status: 500,
             success: false,
             message: 'Error retrieving template signatories',
+        });
+    }
+};
+
+/**
+ * Removes a specific signatory from a template
+ *
+ * @route DELETE /template/:templateId/signatory/:employeeId
+ * @param req.params.templateId - The template ID
+ * @param req.params.employeeId - The employee ID to remove as signatory
+ *
+ * @returns {Object} Response object
+ * @returns {number} Response.status - HTTP status code
+ * @returns {boolean} Response.success - Indicates if operation was successful
+ * @returns {string} Response.message - Description of the result
+ *
+ * @example
+ * // Response body - Success
+ * {
+ *   "data": {
+ *     "status": 200,
+ *     "success": true,
+ *     "message": "Signatory removed successfully"
+ *   }
+ * }
+ *
+ * // Response body - Not Found
+ * {
+ *   "data": {
+ *     "status": 404,
+ *     "success": false,
+ *     "message": "Template not found" | "Signatory not found"
+ *   }
+ * }
+ */
+export const removeTemplateSignatory = async (req: Request, res: Response) => {
+    try {
+        const { templateId, employeeId } = req.params;
+
+        // Check if the template exists
+        const template = await Template.findByPk(templateId);
+        if (!template) {
+            return apiRespond(res, {
+                status: 404,
+                success: false,
+                message: 'Template not found',
+            });
+        }
+
+        // Check if the signatory exists
+        const signatory = await TemplateSignatory.findOne({
+            where: {
+                template_id: templateId,
+                employee_id: employeeId
+            }
+        });
+
+        if (!signatory) {
+            return apiRespond(res, {
+                status: 404,
+                success: false,
+                message: 'Signatory not found in this template',
+            });
+        }
+
+        // Delete the signatory
+        await signatory.destroy();
+
+        return apiRespond(res, {
+            status: 200,
+            success: true,
+            message: 'Signatory removed successfully',
+        });
+    } catch (error) {
+        console.error('Error removing signatory from template', error);
+        return apiRespond(res, {
+            status: 500,
+            success: false,
+            message: 'Error removing signatory from template',
         });
     }
 };
