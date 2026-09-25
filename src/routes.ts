@@ -58,6 +58,7 @@ import {
     getMyClearances,
     getClearanceDetails,
     approveMyClearance,
+    unapproveMyClearance,
     getClearanceDetailsByTrackingId, // <-- add this import
     markClearanceAsCleared, // <-- add this import
     updateClearance, // <-- add this import
@@ -148,6 +149,7 @@ router.get('/my-clearances', authenticateToken, getMyClearances);
 router.get('/clearance/:id/details', authenticateToken, getClearanceDetails);
 router.get('/clearance/tracking/:tracking_id/', getClearanceDetailsByTrackingId);
 router.put('/my-clearance/approve', authenticateToken, approveMyClearance);
+router.put('/my-clearance/unapprove', authenticateToken, unapproveMyClearance);
 
 // ClearanceSignatory routes
 router.get('/clearance/:clearance_id/signatories', authenticateToken, getSignatoriesFromClearance);

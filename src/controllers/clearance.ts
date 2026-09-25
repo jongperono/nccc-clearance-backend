@@ -742,6 +742,94 @@ export const approveMyClearance = async (req: Request, res: Response) => {
 };
 
 /**
+ * Unapprove (revert approval) of a clearance for the authenticated signatory.
+ * @route PUT /my-clearance/unapprove
+ * @param {Request} req - Express request object
+ * @param {Response} res - Express response object
+ * @returns {Promise<Response>} 200 - Approval reverted successfully
+ */
+export const unapproveMyClearance = async (req: Request, res: Response) => {
+    try {
+        const employee = req.body.employee;
+        const { clearance_id } = req.body;
+
+        if (!employee || !employee.employee_id) {
+            return apiRespond(res, {
+                status: 400,
+                success: false,
+                message: 'Missing employee_id in request'
+            });
+        }
+        if (!clearance_id) {
+            return apiRespond(res, {
+                status: 400,
+                success: false,
+                message: 'Missing clearance_id in request'
+            });
+        }
+
+        const signatory = await ClearanceSignatory.findOne({
+            where: {
+                clearance_id,
+                signatory_id: employee.employee_id
+            }
+        });
+
+        if (!signatory) {
+            return apiRespond(res, {
+                status: 404,
+                success: false,
+                message: 'Signatory not found for this clearance'
+            });
+        }
+
+        // Revert approval status to 0 (not approved)
+        signatory.is_approved = false;
+        signatory.date_approved = undefined;
+        await signatory.save();
+
+        // --- Check if all signatories have approved ---
+        const allSignatories = await ClearanceSignatory.findAll({
+            where: { clearance_id }
+        });
+        const total = allSignatories.length;
+        const approved = allSignatories.filter(s => s.is_approved === true).length;
+        let newStatus = "Pending";
+        if (approved === 0) newStatus = "Pending";
+        else if (approved === total) newStatus = "Approved";
+        else newStatus = "In Progress";
+
+        const clearance = await Clearance.findByPk(clearance_id);
+        if (clearance) {
+            // Only update if not already cleared
+            if (clearance.clearance_status !== 'cleared') {
+                // Map newStatus to allowed clearance_status values
+                let allowedStatus: "pending" | "cleared" | "in progress" | "approved";
+                if (newStatus === "Pending") allowedStatus = "pending";
+                else if (newStatus === "Approved") allowedStatus = "approved";
+                else if (newStatus === "In Progress") allowedStatus = "in progress";
+                else allowedStatus = "pending";
+                clearance.clearance_status = allowedStatus;
+                await clearance.save();
+            }
+        }
+
+        return apiRespond(res, {
+            status: 200,
+            success: true,
+            message: 'Approval reverted successfully',
+            data: signatory
+        });
+    } catch (error: any) {
+        return apiRespond(res, {
+            status: 500,
+            success: false,
+            message: `Error reverting approval: ${error.message || String(error)}`
+        });
+    }
+};
+
+/**
  * Update a clearance request.
  * @route PUT /clearance/:id
  * @param {Request} req - Express request object
