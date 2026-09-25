@@ -989,3 +989,51 @@ export const markClearanceAsCleared = async (req: Request, res: Response) => {
         });
     }
 };
+
+/**
+ * Soft delete a clearance request (sets deletedAt timestamp).
+ * @route DELETE /clearances/:id
+ * @param {Request} req - Express request object
+ * @param {Response} res - Express response object
+ * @returns {Promise<Response>} 200 - Clearance deleted successfully
+ * 
+ * @example
+ * // Response:
+ * {
+ *   "status": 200,
+ *   "success": true,
+ *   "message": "Clearance request deleted successfully",
+ *   "data": null
+ * }
+ */
+export const deleteClearance = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+
+        const clearance = await Clearance.findByPk(id);
+        if (!clearance) {
+            return apiRespond(res, {
+                status: 404,
+                success: false,
+                message: 'Clearance not found'
+            });
+        }
+
+        // Soft delete - sets deletedAt timestamp
+        await clearance.destroy();
+
+        return apiRespond(res, {
+            status: 200,
+            success: true,
+            message: 'Clearance request deleted successfully',
+            data: null
+        });
+    } catch (error: any) {
+        console.error('Error deleting clearance:', error);
+        return apiRespond(res, {
+            status: 500,
+            success: false,
+            message: `Error deleting clearance: ${error.message || String(error)}`
+        });
+    }
+};

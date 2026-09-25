@@ -62,6 +62,7 @@ import {
     getClearanceDetailsByTrackingId, // <-- add this import
     markClearanceAsCleared, // <-- add this import
     updateClearance, // <-- add this import
+    deleteClearance, // <-- add this import
 } from './controllers/clearance';
 import {
     createRemark,
@@ -145,6 +146,7 @@ router.post('/clearances', authenticateToken, requirePermission('can_create_clea
 router.put('/clearance/:id/assign-template', authenticateToken, assignTemplateData);
 router.put('/clearance/:id/mark-cleared', authenticateToken, requirePermission('can_clear_clearances'), markClearanceAsCleared);
 router.put('/clearance/:id', authenticateToken, requirePermission('can_create_clearance_requests'), updateClearance);
+router.delete('/clearances/:id', authenticateToken, requirePermission('can_create_clearance_requests'), deleteClearance);
 router.get('/my-clearances', authenticateToken, getMyClearances);
 router.get('/clearance/:id/details', authenticateToken, getClearanceDetails);
 router.get('/clearance/tracking/:tracking_id/', getClearanceDetailsByTrackingId);
