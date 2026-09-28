@@ -18,6 +18,7 @@ import {
     updateTemplate,
     deleteTemplate,
     getTemplateSignatories,
+    removeTemplateSignatory,
 } from './controllers/template';
 import { authenticateToken, verifyPermissions, requirePermission } from './utils/tokenAuth';
 import {
@@ -57,8 +58,11 @@ import {
     getMyClearances,
     getClearanceDetails,
     approveMyClearance,
+    unapproveMyClearance,
     getClearanceDetailsByTrackingId, // <-- add this import
     markClearanceAsCleared, // <-- add this import
+    updateClearance, // <-- add this import
+    deleteClearance, // <-- add this import
 } from './controllers/clearance';
 import {
     createRemark,
@@ -140,11 +144,14 @@ router.get('/company/:id/departments', authenticateToken, requirePermission('can
 router.get('/clearances', authenticateToken, getAllClearanceRequests);
 router.post('/clearances', authenticateToken, requirePermission('can_create_clearance_requests'), createClearanceRequest);
 router.put('/clearance/:id/assign-template', authenticateToken, assignTemplateData);
+router.put('/clearance/:id/mark-cleared', authenticateToken, requirePermission('can_clear_clearances'), markClearanceAsCleared);
+router.put('/clearance/:id', authenticateToken, requirePermission('can_create_clearance_requests'), updateClearance);
+router.delete('/clearances/:id', authenticateToken, requirePermission('can_create_clearance_requests'), deleteClearance);
 router.get('/my-clearances', authenticateToken, getMyClearances);
 router.get('/clearance/:id/details', authenticateToken, getClearanceDetails);
 router.get('/clearance/tracking/:tracking_id/', getClearanceDetailsByTrackingId);
 router.put('/my-clearance/approve', authenticateToken, approveMyClearance);
-router.put('/clearance/:id/mark-cleared', authenticateToken, requirePermission('can_clear_clearances'), markClearanceAsCleared);
+router.put('/my-clearance/unapprove', authenticateToken, unapproveMyClearance);
 
 // ClearanceSignatory routes
 router.get('/clearance/:clearance_id/signatories', authenticateToken, getSignatoriesFromClearance);
@@ -153,6 +160,7 @@ router.get('/clearance/:clearance_id/signatories', authenticateToken, getSignato
 router.get('/templates', authenticateToken, requirePermission('can_create_templates'), getAllTemplates);
 router.post('/template', authenticateToken, requirePermission('can_create_templates'), createTemplate);
 router.get('/template/:id/signatories', authenticateToken, requirePermission('can_create_templates'), getTemplateSignatories);
+router.delete('/template/:templateId/signatory/:employeeId', authenticateToken, requirePermission('can_create_templates'), removeTemplateSignatory);
 router.get('/template/:id', authenticateToken, requirePermission('can_create_templates'), getTemplateById);
 router.put('/template/:id', authenticateToken, requirePermission('can_create_templates'), updateTemplate);
 router.delete('/template/:id', authenticateToken, requirePermission('can_create_templates'), deleteTemplate);

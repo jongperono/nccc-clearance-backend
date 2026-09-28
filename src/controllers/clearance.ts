@@ -742,6 +742,193 @@ export const approveMyClearance = async (req: Request, res: Response) => {
 };
 
 /**
+ * Unapprove (revert approval) of a clearance for the authenticated signatory.
+ * @route PUT /my-clearance/unapprove
+ * @param {Request} req - Express request object
+ * @param {Response} res - Express response object
+ * @returns {Promise<Response>} 200 - Approval reverted successfully
+ */
+export const unapproveMyClearance = async (req: Request, res: Response) => {
+    try {
+        const employee = req.body.employee;
+        const { clearance_id } = req.body;
+
+        if (!employee || !employee.employee_id) {
+            return apiRespond(res, {
+                status: 400,
+                success: false,
+                message: 'Missing employee_id in request'
+            });
+        }
+        if (!clearance_id) {
+            return apiRespond(res, {
+                status: 400,
+                success: false,
+                message: 'Missing clearance_id in request'
+            });
+        }
+
+        const signatory = await ClearanceSignatory.findOne({
+            where: {
+                clearance_id,
+                signatory_id: employee.employee_id
+            }
+        });
+
+        if (!signatory) {
+            return apiRespond(res, {
+                status: 404,
+                success: false,
+                message: 'Signatory not found for this clearance'
+            });
+        }
+
+        // Revert approval status to 0 (not approved)
+        signatory.is_approved = false;
+        signatory.date_approved = undefined;
+        await signatory.save();
+
+        // --- Check if all signatories have approved ---
+        const allSignatories = await ClearanceSignatory.findAll({
+            where: { clearance_id }
+        });
+        const total = allSignatories.length;
+        const approved = allSignatories.filter(s => s.is_approved === true).length;
+        let newStatus = "Pending";
+        if (approved === 0) newStatus = "Pending";
+        else if (approved === total) newStatus = "Approved";
+        else newStatus = "In Progress";
+
+        const clearance = await Clearance.findByPk(clearance_id);
+        if (clearance) {
+            // Only update if not already cleared
+            if (clearance.clearance_status !== 'cleared') {
+                // Map newStatus to allowed clearance_status values
+                let allowedStatus: "pending" | "cleared" | "in progress" | "approved";
+                if (newStatus === "Pending") allowedStatus = "pending";
+                else if (newStatus === "Approved") allowedStatus = "approved";
+                else if (newStatus === "In Progress") allowedStatus = "in progress";
+                else allowedStatus = "pending";
+                clearance.clearance_status = allowedStatus;
+                await clearance.save();
+            }
+        }
+
+        return apiRespond(res, {
+            status: 200,
+            success: true,
+            message: 'Approval reverted successfully',
+            data: signatory
+        });
+    } catch (error: any) {
+        return apiRespond(res, {
+            status: 500,
+            success: false,
+            message: `Error reverting approval: ${error.message || String(error)}`
+        });
+    }
+};
+
+/**
+ * Update a clearance request.
+ * @route PUT /clearance/:id
+ * @param {Request} req - Express request object
+ * @param {Response} res - Express response object
+ * @returns {Promise<Response>} 200 - Updated clearance
+ */
+export const updateClearance = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const {
+            first_name,
+            middle_name,
+            last_name,
+            email,
+            company_id,
+            branch_id,
+            department_id,
+            purpose,
+            id_number,
+            effectivity_date,
+            immediate_head,
+            position,
+        } = req.body;
+
+        console.log('[updateClearance] Request received:', {
+            clearanceId: id,
+            body: req.body
+        });
+
+        // Find the clearance
+        const clearance = await Clearance.findByPk(id);
+
+        if (!clearance) {
+            console.log('[updateClearance] Clearance not found:', id);
+            return apiRespond(res, {
+                status: 404,
+                success: false,
+                message: 'Clearance not found',
+            });
+        }
+
+        console.log('[updateClearance] Current clearance:', clearance.toJSON());
+
+        // Update the clearance
+        await clearance.update({
+            first_name,
+            middle_name: middle_name || null,
+            last_name,
+            email,
+            company_id: String(company_id),
+            branch_id: String(branch_id),
+            department_id: String(department_id),
+            purpose,
+            id_number: id_number || null,
+            effectivity_date: effectivity_date || null,
+            immediate_head: immediate_head || null,
+            position: position || null,
+        } as any);
+
+        console.log('[updateClearance] Clearance updated successfully');
+
+        // Re-fetch with associations
+        const updatedClearance = await Clearance.findOne({
+            where: { id: clearance.id },
+            include: [
+                { model: Company },
+                { model: Branch },
+                { model: Department },
+            ],
+            attributes: {
+                include: [
+                    'id_number',
+                    'effectivity_date',
+                    'immediate_head',
+                    'position'
+                ]
+            }
+        });
+
+        console.log('[updateClearance] Updated clearance fetched:', updatedClearance?.toJSON());
+
+        return apiRespond(res, {
+            status: 200,
+            success: true,
+            message: 'Clearance updated successfully',
+            data: updatedClearance ? updatedClearance.get({ plain: true }) : null,
+        });
+    } catch (error: any) {
+        console.error('[updateClearance] Error updating clearance:', error);
+        console.error('[updateClearance] Error stack:', error.stack);
+        return apiRespond(res, {
+            status: 500,
+            success: false,
+            message: error?.message || 'Internal server error while updating clearance',
+        });
+    }
+};
+
+/**
  * Mark a clearance as cleared by an employee.
  * @route PUT /clearance/:id/mark-cleared
  * @param {Request} req - Express request object
@@ -799,6 +986,54 @@ export const markClearanceAsCleared = async (req: Request, res: Response) => {
             status: 500,
             success: false,
             message: `Error marking clearance as cleared: ${error.message || String(error)}`
+        });
+    }
+};
+
+/**
+ * Soft delete a clearance request (sets deletedAt timestamp).
+ * @route DELETE /clearances/:id
+ * @param {Request} req - Express request object
+ * @param {Response} res - Express response object
+ * @returns {Promise<Response>} 200 - Clearance deleted successfully
+ * 
+ * @example
+ * // Response:
+ * {
+ *   "status": 200,
+ *   "success": true,
+ *   "message": "Clearance request deleted successfully",
+ *   "data": null
+ * }
+ */
+export const deleteClearance = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+
+        const clearance = await Clearance.findByPk(id);
+        if (!clearance) {
+            return apiRespond(res, {
+                status: 404,
+                success: false,
+                message: 'Clearance not found'
+            });
+        }
+
+        // Soft delete - sets deletedAt timestamp
+        await clearance.destroy();
+
+        return apiRespond(res, {
+            status: 200,
+            success: true,
+            message: 'Clearance request deleted successfully',
+            data: null
+        });
+    } catch (error: any) {
+        console.error('Error deleting clearance:', error);
+        return apiRespond(res, {
+            status: 500,
+            success: false,
+            message: `Error deleting clearance: ${error.message || String(error)}`
         });
     }
 };
