@@ -2,4 +2,3 @@ database.sqlite
 node_modules
 build
 
-.env
